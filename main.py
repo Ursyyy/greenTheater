@@ -10,7 +10,8 @@ from dates import getDays, HOURS, getDay
 
 @dp.message_handler(commands=['start'], state='*')
 async def Start(message: types.Message) -> None:
-	if checkUser(message.from_user.id): pass
+	if checkUser(message.from_user.id): 
+		await message.answer("Вы уже авторизовались и по кнопке \"Забронировать\" можете сделать бронь", reply_markup=getProfileKB())
 	else: 
 		await message.answer(local['hello'], reply_markup=types.ReplyKeyboardRemove(True))
 		await Registration.firstName.set()
@@ -64,6 +65,11 @@ async def getDate(message: types.Message):
 	await message.answer("Выберите день:", reply_markup=keyboard)
 
 
+@dp.message_handler(lambda c: c.text in ['Забронировать', 'Посмотреть мои бронировки', 'Связаться с администратором'], state='*')
+async def Menu(message: types.Message, state: FSMContext):
+	await state.finish()
+	if message.text == 'Забронировать': pass
+
 @dp.callback_query_handler(lambda c: c.data, state=Registration)
 async def FilterQueryHandler(cd: types.CallbackQuery, state: FSMContext):  
 	if cd.data.startswith('confirm_new_user'):
@@ -74,10 +80,9 @@ async def FilterQueryHandler(cd: types.CallbackQuery, state: FSMContext):
 			command = data['command']
 		try: 
 			addUser(cd.from_user.id, cd.from_user.username, firstName, lastName, phone, command)
-			await bot.send_message(cd.from_user.id, local['success_reg'])
+			await bot.send_message(cd.from_user.id, local['success_reg'], reply_markup=getProfileKB())
 		except Exception as e: await bot.send_message(cd.from_user.id, text=local['smth_wrong'])
 		finally: await state.finish()
-
 
 @dp.callback_query_handler(lambda c: c.data)
 async def ReervHandler(cd: types.CallbackQuery, state: FSMContext):
@@ -132,7 +137,8 @@ async def ReervHandler(cd: types.CallbackQuery, state: FSMContext):
 			count = data['count']
 			time = data['time']
 			date = data['date']
-		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Бронь успешно создана!\n{getDay(date)} {time}\nВаше рабочее место в Зеленом театре ждет вас")
+		reversId = 1
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Бронь успешно создана!\n{getDay(date)} {time}\nВаше рабочее место в Зеленом театре ждет вас", reply_markup=getReservKB(reversId))
 
 def getReservKB(reservId):
 	keyboard = types.InlineKeyboardMarkup(row_width=1).add(*[
