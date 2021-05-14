@@ -120,11 +120,18 @@ async def ReervHandler(cd: types.CallbackQuery, state: FSMContext):
 		async with state.proxy() as data: 
 			data['count'] = count
 			time = data['time']
-			date = data['date']
+			date = getDay(data['date'])
 		keyboard = types.InlineKeyboardMarkup(row_width=1).add(*[
 			types.InlineKeyboardButton(text='Подтвердить', callback_data='create_reserv'),
 			types.InlineKeyboardButton(text='Отмена', callback_data='cancel')
 		])
-		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Выбранные данные:", reply_markup=keyboard)
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Выбранные данные:\nДата: {date}\nВремя: {time}\nКол-во мест: {count}", reply_markup=keyboard)
+
+	elif cd.data.startswith('create_reserv'):
+		async with state.proxy() as data: 
+			count = data['count']
+			time = data['time']
+			date = data['date']
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Бронь успешно создана!\n{getDay(date)} {time}\nВаше рабочее место в Зеленом театре ждет вас")
 
 executor.start_polling(dp, skip_updates=True)
