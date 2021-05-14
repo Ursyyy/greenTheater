@@ -134,4 +134,19 @@ async def ReervHandler(cd: types.CallbackQuery, state: FSMContext):
 			date = data['date']
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Бронь успешно создана!\n{getDay(date)} {time}\nВаше рабочее место в Зеленом театре ждет вас")
 
+def getReservKB(reservId):
+	keyboard = types.InlineKeyboardMarkup(row_width=1).add(*[
+		types.InlineKeyboardButton(text="Отменить бронь", callback_data=f'reserv_cancel={reservId}'),
+		types.InlineKeyboardButton(text="Перенести бронь", callback_data=f'transfer_cancel={reservId}')
+	])
+	return keyboard
+
+def getProfileKB():
+	keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False, selective=True).add(*[
+		types.KeyboardButton(text="Забронировать"),
+		types.KeyboardButton(text="Посмотреть мои бронировки"),
+		types.KeyboardButton(text="Связаться с администратором")
+	])
+	return keyboard
+
 executor.start_polling(dp, skip_updates=True)
