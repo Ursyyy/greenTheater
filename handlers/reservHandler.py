@@ -4,6 +4,7 @@ from bot import bot, dp
 from keyboards import getReservKB
 from dates import getDays, getDay, HOURS
 
+@dp.callback_query_handler(lambda c: c.data)
 async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 	if cd.data.startswith('check_date'):
 		date = cd.data.split('=')[1]
@@ -58,5 +59,3 @@ async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 			date = data['date']
 		reversId = 1
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Бронь успешно создана!\n{getDay(date)} {time}\nВаше рабочее место в Зеленом театре ждет вас", reply_markup=getReservKB(reversId))
-
-dp.register_callback_query_handler(ReservHandler, lambda c: c.data, state='*')

@@ -7,15 +7,9 @@ from local import local
 from handlers.reservHandler import getReservKB
 from keyboards import getProfileKB
 import handlers.registerHandler
-from dates import getDays, getCurDay
+from dates import getDays#, getCurDay
 
-@dp.message_handler(commands=['start'], state='*')
-async def Start(message: types.Message) -> None:
-	if checkUser(message.from_user.id): 
-		await message.answer("Вы уже авторизовались и по кнопке \"Забронировать\" можете сделать бронь", reply_markup=getProfileKB())
-	else: 
-		await message.answer(local['hello'], reply_markup=types.ReplyKeyboardRemove(True))
-		await Registration.firstName.set()
+
 
 @dp.message_handler(commands=['reserv'])
 async def getDate(message: types.Message):
