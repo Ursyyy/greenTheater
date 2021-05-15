@@ -23,3 +23,8 @@ def getDays() -> list:
 def getDay(day): 
     day = datetime.datetime.strptime(day, '%Y-%m-%d')
     return f"{str(day.day)} {MONTH[day.month]} ({DAYS[day.weekday()]})"
+
+def getCurDay():
+    now = datetime.datetime.now()
+    return str(now).split('.')[0]
+    
