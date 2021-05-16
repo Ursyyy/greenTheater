@@ -10,3 +10,8 @@ PATH_TO_JSON_FILE = ""
 TEXT_VARIABLES = ""
 
 TABLE_COUNTS = 35
+
+#STATUS
+ACTIVE = "active"
+DELETED = 'deleted'
+STOPED = 'stoped'

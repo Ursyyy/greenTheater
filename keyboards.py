@@ -11,6 +11,6 @@ def getProfileKB():
 def getReservKB(reservId):
 	keyboard = types.InlineKeyboardMarkup(row_width=1).add(*[
 		types.InlineKeyboardButton(text="Отменить бронь", callback_data=f'reserv_cancel={reservId}'),
-		types.InlineKeyboardButton(text="Перенести бронь", callback_data=f'transfer_cancel={reservId}')
+		types.InlineKeyboardButton(text="Перенести бронь", callback_data=f'transfer_reserv={reservId}')
 	])
 	return keyboard

@@ -1,8 +1,11 @@
 from aiogram.dispatcher import FSMContext
 from aiogram import types
+from aiogram.types import message
 from bot import bot, dp
 from keyboards import getReservKB
 from dates import getDays, getDay, HOURS
+from sqlRequests import addReserv, checkDate, removeReserv, changeTime
+from config import TABLE_COUNTS
 
 @dp.callback_query_handler(lambda c: c.data)
 async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
@@ -12,7 +15,11 @@ async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 		day = getDay(date)
 		#По дате выборка из бд
 		keyboard = types.InlineKeyboardMarkup(row_width=1)
-		for item in HOURS: keyboard.add(types.InlineKeyboardButton(text=item.replace('count', '35'), callback_data=f"set_time={item.split()[0]}"))
+		for item in HOURS: 
+			count = TABLE_COUNTS - checkDate(f"{date} {item.split('-')[0]}:00")
+			if count > 0: callback = f"set_time={item.split()[0]}"
+			else: callback = "pass"
+			keyboard.add(types.InlineKeyboardButton(text=item.replace('count', str(count)), callback_data=callback))
 		keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data="back_to_dates"))
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Выбранный день: {day}\nВыберите время брони:", reply_markup=keyboard)
 
@@ -57,5 +64,49 @@ async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 			count = data['count']
 			time = data['time']
 			date = data['date']
-		reversId = 1
+		reversId = addReserv(cd.from_user.id, f"{date} {time.split('-')[0]}:00", count)
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Бронь успешно создана!\n{getDay(date)} {time}\nВаше рабочее место в Зеленом театре ждет вас", reply_markup=getReservKB(reversId))
+
+	elif cd.data.startswith('reserv_cancel'):
+		reservId = cd.data.split('=')[1]
+		if removeReserv(reservId): mesText = "Бронь отменена"
+		else: mesText = "Что-то пошло не так"
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=mesText)
+	
+	elif cd.data.startswith('transfer_reserv'):
+		reservId = cd.data.split('=')[1]
+		async with state.proxy() as data: data['id'] = reservId
+		keyboard = types.InlineKeyboardMarkup(row_width=1)
+		dates = getDays()
+		for item in dates:
+			keyboard.add(types.InlineKeyboardButton(text=item['dayName'], callback_data=f"transfer_date={item['dayStamp']}"))
+		keyboard.add(types.InlineKeyboardButton(text="Отменить", callback_data="cancel"))
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Выберите день:", reply_markup=keyboard)
+
+	elif cd.data.startswith('transfer_date'):
+		date = cd.data.split('=')[1]
+		async with state.proxy() as data: data['date'] = date
+		day = getDay(date)
+		#По дате выборка из бд
+		keyboard = types.InlineKeyboardMarkup(row_width=1)
+		for item in HOURS: keyboard.add(types.InlineKeyboardButton(text=item.replace('count', '35'), callback_data=f"transfer_time={item.split()[0]}"))
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Выбранный день: {day}\nВыберите время брони:", reply_markup=keyboard)
+
+	elif cd.data.startswith('transfer_time'): 
+		time = cd.data.split('=')[1]
+		async with state.proxy() as data: data['time'] = time
+		keyboard = types.InlineKeyboardMarkup(row_width=1).add(*[
+			types.InlineKeyboardButton(text='1 место', callback_data='transfer_table_count=1'),
+			types.InlineKeyboardButton(text='2 местa', callback_data='transfer_table_count=2'),
+			types.InlineKeyboardButton(text='Больше 2-х мест', callback_data='table_count=-1'),
+		])
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Сколько мест вам нужно?", reply_markup=keyboard)
+
+	elif cd.data.startswith('transfer_table_count'):
+		count = cd.data.split('=')[1]
+		async with state.proxy() as data: 
+			reservId = data['id']
+			time = data['time']
+			date = data['date']
+		if changeTime(reservId, f"{date} {time.split('-')[0]}:00", count):	await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Время бронирования перенесено!\n{getDay(date)} {time}\nВаше рабочее место в Зеленом театре ждет вас", reply_markup=getReservKB(reservId))
+		else: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Что-то пошло не так")

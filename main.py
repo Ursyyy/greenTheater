@@ -7,12 +7,10 @@ from local import local
 from handlers.reservHandler import getReservKB
 from keyboards import getProfileKB
 import handlers.registerHandler
-from dates import getDays#, getCurDay
-
-
+from dates import getDays, getDay#, getCurDay
 
 @dp.message_handler(commands=['reserv'])
-async def getDate(message: types.Message):
+async def startReserv(message: types.Message):
 	keyboard = types.InlineKeyboardMarkup(row_width=1)
 	dates = getDays()
 	for item in dates:
@@ -22,24 +20,22 @@ async def getDate(message: types.Message):
 
 
 @dp.message_handler(lambda c: c.text in ['Забронировать', 'Посмотреть мои бронировки', 'Связаться с администратором'], state='*')
-async def Menu(message: types.Message, state: FSMContext):
+async def Menu(message: types.Message, state: FSMContext) -> None:
 	await state.finish()
-	if message.text == 'Забронировать': pass
+	if message.text == 'Забронировать': await startReserv(message)
+	elif message.text == 'Посмотреть мои бронировки': await getReserv(message)
+	else: pass
 
-@dp.callback_query_handler(lambda c: c.data, state=Registration)
-async def registerUser(cd: types.CallbackQuery, state: FSMContext):  
-	print('--')
-	if cd.data.startswith('confirm_new_user'):
-		async with state.proxy() as data: 
-			firstName = data['firstName']
-			lastName = data['lastName']
-			phone = data['phone']
-			command = data['command']
-		try: 
-			addUser(cd.from_user.id, cd.from_user.username, firstName, lastName, phone, command)
-			await bot.send_message(cd.from_user.id, local['success_reg'], reply_markup=getProfileKB())
-		except Exception as e: await bot.send_message(cd.from_user.id, text=local['smth_wrong'])
-		finally: await state.finish()
-
+async def getReserv(message: types.Message) -> None:
+	reservs = getUserReserv(message.from_user.id)
+	if len(reservs) == 0: 
+		await message.answer('У вас еще нет бронирований, можете нажать кнопку "Забронировать" чтоб создать бронь')
+		return
+	# [(1, '130923154', datetime.datetime(2021, 5, 16, 14, 7, 2), datetime.datetime(2021, 5, 20, 15, 0), 1, None)]
+	for item in reservs:
+		time = str(item[3]).split()[1][:5]
+		endTime = int(time[:2]) + 1
+		text = f"Бронь на {getDay(str(item[3]).split()[0])}\nВремя: {time}-{endTime}:00\nКол-во столов: {item[-2]}"
+		await message.answer(text, reply_markup=getReservKB(item[0]))
 
 executor.start_polling(dp, skip_updates=True)

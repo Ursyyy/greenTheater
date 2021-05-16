@@ -38,17 +38,46 @@ def addUser(tid:Union[int, str], tname:str, firstName: str, lastName: str, phone
 	connector.commit()
 
 def addReserv(tid: Union[int, str], reservTime: str, tablesCount: Union[int, str], comment:str=None) -> int: 
-	createdId = None
 	try:
 		cursor.execute('insert into reservs (userId, createTime, reservTime, tablesCount, commentary) values (%s, %s, %s, %s, %s)', 
 			(int(tid), getCurDay(), reservTime, int(tablesCount), comment))
+		connector.commit()
+		cursor.execute('select id from reservs where userId = %s and createTime = %s and reservTime = %s', (int(tid), getCurDay(), reservTime))
+		createdId = cursor.fetchone()[0]
 	except: createdId = -1
 	finally: return createdId 
 
+def checkDate(date: str) -> int:
+	try: 
+		cursor.execute('select count(*) from reservs where reservTime = %s', (date,))
+		count = cursor.fetchone()[0]
+	except: count = 0
+	finally: return count 
+
 def getUserReserv(tid: Union[int, str]) -> list:
 	date = getCurDay()
-	reservsList = []
 	try:
-		cursor.execute('select * from reservs where telegramId = %s and reservTime > %s', (tid, date))
-	except: pass
-	finally: pass
+		cursor.execute('select * from reservs where userId = %s and reservTime > %s', (tid, date))
+		reservList = cursor.fetchall()
+	except Exception as e: 
+		print(e)
+		reservList = []
+	finally: return reservList
+
+def removeReserv(reservId: Union[int, str]) -> bool:
+	try:
+		cursor.execute('delete from reservs where id = %s', (int(reservId),))
+		connector.commit()
+		return True
+	except Exception as e: 
+		print(e)
+		return False
+
+def changeTime(reservId, newTime, tablesCount) -> bool:
+	try:
+		cursor.execute('update reservs set reservTime = %s, tablesCount = %s where id = %s', (str(newTime), int(reservId), int(tablesCount)))
+		connector.commit()
+		return True
+	except Exception as e: 
+		print(e)
+		return False
