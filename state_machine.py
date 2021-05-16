@@ -5,3 +5,6 @@ class Registration(StatesGroup):
     lastName = State()
     phone = State()
     command = State()
+
+class Admin(StatesGroup): 
+    password = State()
