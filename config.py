@@ -15,3 +15,6 @@ TABLE_COUNTS = 35
 ACTIVE = "active"
 DELETED = 'deleted'
 STOPED = 'stoped'
+
+#Admin password
+PASSWORD = '147852'

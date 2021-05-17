@@ -7,6 +7,8 @@ from local import local
 from handlers.reservHandler import getReservKB
 from keyboards import getProfileKB
 import handlers.registerHandler
+import handlers.adminHandler
+from config import ACTIVE
 from dates import getDays, getDay#, getCurDay
 
 @dp.message_handler(commands=['reserv'])
@@ -35,7 +37,8 @@ async def getReserv(message: types.Message) -> None:
 	for item in reservs:
 		time = str(item[3]).split()[1][:5]
 		endTime = int(time[:2]) + 1
-		text = f"Бронь на {getDay(str(item[3]).split()[0])}\nВремя: {time}-{endTime}:00\nКол-во столов: {item[-3]}"
+		status = 'активна' if item[-2] == ACTIVE else 'остановлена'
+		text = f"Бронь на {getDay(str(item[3]).split()[0])}\nВремя: {time}-{endTime}:00\nКол-во столов: {item[-3]}\nСтатус: {status}"
 		await message.answer(text, reply_markup=getReservKB(item[0]))
 
 executor.start_polling(dp, skip_updates=True)

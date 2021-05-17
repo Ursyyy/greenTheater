@@ -7,7 +7,17 @@ from dates import getDays, getDay, HOURS
 from sqlRequests import addReserv, checkDate, removeReserv, changeTime
 from config import TABLE_COUNTS
 
-@dp.callback_query_handler(lambda c: c.data)
+RESERV_CALLBACKS = ['check_date', 'back_to_dates', 'cancel', 'set_time', 'table_count', 'create_reserv',
+					'reserv_cancel', 'transfer_reserv', 'transfer_date', 'transfer_time', 'transfer_table_count']
+	
+def checkReservCallbacks(data):
+	flag = False
+	if data in RESERV_CALLBACKS: flag = True
+	if data.split('=')[0] in RESERV_CALLBACKS and not flag: flag = True
+	return flag 
+
+
+@dp.callback_query_handler(lambda c: checkReservCallbacks(c.data))
 async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 	if cd.data.startswith('check_date'):
 		date = cd.data.split('=')[1]
@@ -17,7 +27,7 @@ async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 		keyboard = types.InlineKeyboardMarkup(row_width=1)
 		for item in HOURS: 
 			count = TABLE_COUNTS - checkDate(f"{date} {item.split('-')[0]}:00")
-			if count > 0: callback = f"set_time={item.split()[0]}"
+			if count > 0: callback = f"set_time={item.split()[0]}={count}"
 			else: callback = "pass"
 			keyboard.add(types.InlineKeyboardButton(text=item.replace('count', str(count)), callback_data=callback))
 		keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data="back_to_dates"))
@@ -35,11 +45,13 @@ async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 		await bot.delete_message(cd.from_user.id, cd.message.message_id)
 
 	elif cd.data.startswith('set_time'):
-		time = cd.data.split('=')[1]
+		text, time, count = cd.data.split('=')
+		count = int(count)
 		async with state.proxy() as data: data['time'] = time
+		twoTables = 'table_count=2' if count > 1 else "pass"
 		keyboard = types.InlineKeyboardMarkup(row_width=1).add(*[
 			types.InlineKeyboardButton(text='1 место', callback_data='table_count=1'),
-			types.InlineKeyboardButton(text='2 местa', callback_data='table_count=2'),
+			types.InlineKeyboardButton(text='2 местa', callback_data=twoTables),
 			types.InlineKeyboardButton(text='Больше 2-х мест', callback_data='table_count=-1'),
 		])
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Сколько мест вам нужно?", reply_markup=keyboard)
@@ -87,17 +99,23 @@ async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 		date = cd.data.split('=')[1]
 		async with state.proxy() as data: data['date'] = date
 		day = getDay(date)
-		#По дате выборка из бд
 		keyboard = types.InlineKeyboardMarkup(row_width=1)
-		for item in HOURS: keyboard.add(types.InlineKeyboardButton(text=item.replace('count', '35'), callback_data=f"transfer_time={item.split()[0]}"))
+		for item in HOURS: 
+			count = TABLE_COUNTS - checkDate(f"{date} {item.split('-')[0]}:00")
+			if count > 0: callback = f"transfet_time={item.split()[0]}={count}"
+			else: callback = "pass"
+			keyboard.add(types.InlineKeyboardButton(text=item.replace('count', str(count)), callback_data=callback))
+		for item in HOURS: keyboard.add(types.InlineKeyboardButton(text=item.replace('count', '35'), callback_data=callback))
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Выбранный день: {day}\nВыберите время брони:", reply_markup=keyboard)
 
 	elif cd.data.startswith('transfer_time'): 
-		time = cd.data.split('=')[1]
+		text, time, count = cd.data.split('=')
+		count = int(count)
 		async with state.proxy() as data: data['time'] = time
+		twoTables = 'transfer_table_count=2' if count > 1 else "pass"
 		keyboard = types.InlineKeyboardMarkup(row_width=1).add(*[
 			types.InlineKeyboardButton(text='1 место', callback_data='transfer_table_count=1'),
-			types.InlineKeyboardButton(text='2 местa', callback_data='transfer_table_count=2'),
+			types.InlineKeyboardButton(text='2 местa', callback_data=twoTables),
 			types.InlineKeyboardButton(text='Больше 2-х мест', callback_data='table_count=-1'),
 		])
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Сколько мест вам нужно?", reply_markup=keyboard)

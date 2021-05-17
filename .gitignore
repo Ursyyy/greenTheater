@@ -23,4 +23,5 @@ yarn-debug.log*
 yarn-error.log*
 src/components/categories/cats.js
 /__pycache__
+/handlers/__pycache__
 test.py

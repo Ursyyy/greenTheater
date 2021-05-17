@@ -49,7 +49,7 @@ def addReserv(tid: Union[int, str], reservTime: str, tablesCount: Union[int, str
 
 def checkDate(date: str) -> int:
 	try: 
-		cursor.execute('select tablesCount from reservs where reservTime = %s', (date,))
+		cursor.execute('select tablesCount from reservs where reservTime = %s and status != %s', (date,DELETED))
 		count = 0
 		for item in cursor.fetchall():
 			count += item[0]
@@ -59,7 +59,7 @@ def checkDate(date: str) -> int:
 def getUserReserv(tid: Union[int, str]) -> list:
 	date = getCurDay()
 	try:
-		cursor.execute('select * from reservs where userId = %s and reservTime > %s and status = %s', (tid, date, ACTIVE))
+		cursor.execute('select * from reservs where userId = %s and reservTime > %s and status = %s or status = %s', (tid, date, ACTIVE, STOPED))
 		reservList = cursor.fetchall()
 	except Exception as e: 
 		print(e)
@@ -83,4 +83,8 @@ def changeTime(reservId, newTime, tablesCount) -> bool:
 		return False
 
 def stopReserv(startTime: str, endTime: str) -> bool:
-	pass
+	try:
+		cursor.execute('update reservs set status = %s where reservTime >= %s and reservTime <= %s', (STOPED, startTime, endTime))
+		connector.commit()
+		return True
+	except: return False
