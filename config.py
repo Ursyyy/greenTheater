@@ -16,5 +16,6 @@ ACTIVE = "active"
 DELETED = 'deleted'
 STOPED = 'stoped'
 
-#Admin password
+#Admin password and command for login
 PASSWORD = '147852'
+ADMIN_COMMAND = 'login'

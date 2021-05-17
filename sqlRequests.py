@@ -39,6 +39,11 @@ def addUser(tid:Union[int, str], tname:str, firstName: str, lastName: str, phone
 
 def addReserv(tid: Union[int, str], reservTime: str, tablesCount: Union[int, str], comment:str=None) -> int: 
 	try:
+		cursor.execute('select id from stoppedReservs where startTime <= %s and endTime > %s', (reservTime, reservTime))
+		stop = cursor.fetchone()
+		if not stop is None: 
+			createdId = -2
+			return
 		cursor.execute('insert into reservs (userId, createTime, reservTime, tablesCount, status, commentary) values (%s, %s, %s, %s, %s, %s)', 
 			(int(tid), getCurDay(), reservTime, int(tablesCount), ACTIVE, comment))
 		connector.commit()
@@ -74,17 +79,22 @@ def removeReserv(reservId: Union[int, str]) -> bool:
 	except Exception as e: 
 		return False
 
-def changeTime(reservId, newTime, tablesCount) -> bool:
+def changeTime(reservId, newTime, tablesCount) -> int:
 	try:
+		cursor.execute('select id from stoppedReservs where startTime >= %s and endTime < %s', (newTime,))
+		stop = cursor.fetchone()
+		if not stop is None: 
+			return -1
 		cursor.execute('update reservs set reservTime = %s, tablesCount = %s where id = %s', (str(newTime), int(reservId), int(tablesCount)))
 		connector.commit()
-		return True
-	except Exception as e: 
-		return False
+		return 1
+	except: return 0
 
 def stopReserv(startTime: str, endTime: str) -> bool:
 	try:
 		cursor.execute('update reservs set status = %s where reservTime >= %s and reservTime <= %s', (STOPED, startTime, endTime))
+		connector.commit()
+		cursor.execute('insert into stoppedReservs (startTime, endTime) values (%s, %s)', (startTime, endTime))
 		connector.commit()
 		return True
 	except: return False

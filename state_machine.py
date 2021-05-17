@@ -8,3 +8,4 @@ class Registration(StatesGroup):
 
 class Admin(StatesGroup): 
     password = State()
+    setUser = State()
