@@ -22,6 +22,7 @@ async def setUserName(message: types.Message, state: FSMContext):
 	for item in getDays():
 		keyboard.add(types.InlineKeyboardButton(text=item['dayName'], callback_data=f"admin_date_reserv={item['dayStamp']}"))
 	keyboard.add(types.InlineKeyboardButton(text="Отменить", callback_data="cancel"))
+	await state.finish()
 	await message.answer(text="Выберите день для бронирования:", reply_markup=keyboard)
 
 @dp.message_handler(state=Admin.password)
