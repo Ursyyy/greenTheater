@@ -17,7 +17,7 @@ async def adminLogin(message: types.Message):
 async def setUserName(message: types.Message, state: FSMContext):
 	username = message.text
 	if username.startswith('@'): username = username[1:]
-	async with state.proxy() as data: user = getUser(username)
+	async with state.proxy() as data: data['user'] = getUser(username)
 	keyboard = types.InlineKeyboardMarkup(row_width=1)
 	for item in getDays():
 		keyboard.add(types.InlineKeyboardButton(text=item['dayName'], callback_data=f"admin_date_reserv={item['dayStamp']}"))
@@ -142,6 +142,7 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 
 	elif cd.data.startswith('admin_create_reserv'):
 		async with state.proxy() as data: 
+			print(data)
 			user = data['user']
 			count = data['count']
 			time = data['time']
