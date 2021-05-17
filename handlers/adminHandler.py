@@ -129,6 +129,7 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Сколько мест вам нужно?\nМест сободно: {count}", reply_markup=keyboard)
 
 	elif cd.data.startswith('admin_table_count'):
+		count = cd.data.split('=')[1]
 		async with state.proxy() as data: 
 			data['count'] = count
 			time = data['time']
