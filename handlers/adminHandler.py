@@ -3,7 +3,7 @@ from aiogram import types
 from bot import bot, dp
 from keyboards import getReservKB
 from dates import getDays, START_HOUR, END_HOUR, getDay, HOURS
-from sqlRequests import stopReserv, checkDate
+from sqlRequests import stopReserv, checkDate, getUser
 from state_machine import Admin
 from config import PASSWORD, ADMIN_COMMAND, TABLE_COUNTS
 
@@ -12,6 +12,17 @@ from config import PASSWORD, ADMIN_COMMAND, TABLE_COUNTS
 async def adminLogin(message: types.Message): 
 	await message.answer("Введите пароль для подтверждения личности:")
 	await Admin.password.set()
+
+@dp.message_handler(state=Admin.setUser)
+async def setUserName(message: types.Message, state: FSMContext):
+	username = message.text
+	if username.startswith('@'): username = username[1:]
+	async with state.proxy() as data: user = getUser(username)
+	keyboard = types.InlineKeyboardMarkup(row_width=1)
+	for item in getDays():
+		keyboard.add(types.InlineKeyboardButton(text=item['dayName'], callback_data=f"admin_date_reserv={item['dayStamp']}"))
+	keyboard.add(types.InlineKeyboardButton(text="Отменить", callback_data="cancel"))
+	await message.answer(text="Выберите день для бронирования:", reply_markup=keyboard)
 
 @dp.message_handler(state=Admin.password)
 async def adminPass(message: types.Message, state: FSMContext):
@@ -140,4 +151,6 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 		elif reversId == -2: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="В это время создание бронирования заблокирования")
 
 	elif cd.data.startswith('admin_user_reserv'):
-		
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Введите нико пользователя, на которого вы хотите сделат бронирование:")
+		await Admin.setUser.set()
+	

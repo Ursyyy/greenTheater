@@ -37,6 +37,10 @@ def addUser(tid:Union[int, str], tname:str, firstName: str, lastName: str, phone
 	cursor.execute('insert into users (telegramId, username, firstName, lastName, phone, commandName) values (%s, %s, %s, %s, %s, %s)', (int(tid), tname, firstName, lastName, phone, commandName))
 	connector.commit()
 
+def getUser(username: str) -> int:
+	cursor.execute('select telegramId from users where username = %s', (username, ))
+	return cursor.fetchone()[0]
+
 def addReserv(tid: Union[int, str], reservTime: str, tablesCount: Union[int, str], comment:str=None) -> int: 
 	try:
 		cursor.execute('select id from stoppedReservs where startTime <= %s and endTime > %s', (reservTime, reservTime))
