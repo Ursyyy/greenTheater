@@ -5,11 +5,13 @@ from sqlRequests import *
 from state_machine import Registration
 from local import local
 from handlers.reservHandler import getReservKB
-from keyboards import getProfileKB
+# from keyboards import getProfileKB
 import handlers.registerHandler
 import handlers.adminHandler
 from config import ACTIVE
-from dates import getDays, getDay#, getCurDay
+from dates import getDays, getDay
+import notify
+
 
 @dp.message_handler(commands=['reserv'])
 async def startReserv(message: types.Message):
@@ -20,6 +22,9 @@ async def startReserv(message: types.Message):
 	keyboard.add(types.InlineKeyboardButton(text="Отменить", callback_data="cancel"))
 	await message.answer("Выберите день:", reply_markup=keyboard)
 
+@dp.message_handler(commands=['test'])
+async def test(message):
+	await notify.dailyReport()
 
 @dp.message_handler(lambda c: c.text in ['Забронировать', 'Посмотреть мои бронировки', 'Связаться с администратором'], state='*')
 async def Menu(message: types.Message, state: FSMContext) -> None:

@@ -33,3 +33,14 @@ def getCurDay():
     now = datetime.datetime.now()
     return str(now).split('.')[0]
     
+
+def getDaysForNotify():
+    now = datetime.datetime.now()
+    today = str(datetime.datetime.strptime(str(now + datetime.timedelta(days=1)).split()[0], '%Y-%m-%d')).split()[0]
+    return [f"{today} 09:00:00", f"{today} 19:00:00"]
+
+def getDayForHourNotify():
+    now = str(datetime.datetime.now())
+    hour = int(now.split()[1][:2])
+    today = str(datetime.datetime.strptime(now.split()[0], '%Y-%m-%d')).split()[0]
+    return [f'{today} {hour + 1}:00:00', f'{today} {hour + 2}:00:00']

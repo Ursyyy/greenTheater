@@ -3,7 +3,7 @@ from aiogram import types
 from bot import bot, dp
 from keyboards import getReservKB
 from dates import getDays, START_HOUR, END_HOUR, getDay, HOURS
-from sqlRequests import stopReserv, checkDate, getUser
+from sqlRequests import stopReserv, checkDate, getUser, addReserv
 from state_machine import Admin
 from config import PASSWORD, ADMIN_COMMAND, TABLE_COUNTS
 
@@ -17,12 +17,16 @@ async def adminLogin(message: types.Message):
 async def setUserName(message: types.Message, state: FSMContext):
 	username = message.text
 	if username.startswith('@'): username = username[1:]
-	async with state.proxy() as data: data['user'] = getUser(username)
+	user = getUser(username)
+	if user == -1:
+		await message.answer("Пользователь с таким именем не найден")
+		return
+	async with state.proxy() as data: 
+		data['user'] = user
 	keyboard = types.InlineKeyboardMarkup(row_width=1)
 	for item in getDays():
 		keyboard.add(types.InlineKeyboardButton(text=item['dayName'], callback_data=f"admin_date_reserv={item['dayStamp']}"))
 	keyboard.add(types.InlineKeyboardButton(text="Отменить", callback_data="cancel"))
-	await state.finish()
 	await message.answer(text="Выберите день для бронирования:", reply_markup=keyboard)
 
 @dp.message_handler(state=Admin.password)
@@ -38,7 +42,7 @@ async def adminPass(message: types.Message, state: FSMContext):
 	else: await message.answer('Пароль не верный, свяжитесь с администратором для уточнения пароля')
 	await state.finish()
 
-@dp.callback_query_handler(lambda c: c.data.startswith('admin'))
+@dp.callback_query_handler(lambda c: c.data.startswith('admin'), state=['*', Admin])
 async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 	if cd.data.startswith('admin_cancel_reserv'):
 		keyboard = types.InlineKeyboardMarkup(row_width=1)
@@ -106,6 +110,7 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 	elif cd.data.startswith('admin_date_reserv'):
 		date = cd.data.split('=')[1]
 		async with state.proxy() as data: data['date'] = date
+		# await state.finish()
 		keyboard = types.InlineKeyboardMarkup(row_width=1)
 		for item in HOURS: 
 			count = TABLE_COUNTS - checkDate(f"{date} {item.split('-')[0]}:00")
@@ -142,12 +147,12 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 
 	elif cd.data.startswith('admin_create_reserv'):
 		async with state.proxy() as data: 
-			print(data)
 			user = data['user']
 			count = data['count']
 			time = data['time']
 			date = data['date']
 		reversId = addReserv(user, f"{date} {time.split('-')[0]}:00", count)
+		await state.finish()
 		if reversId >= 0:
 			await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Бронь успешно создана!\n{getDay(date)} {time}\nВаше рабочее место в Зеленом театре ждет вас", reply_markup=getReservKB(reversId))
 		elif reversId == -1: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Возникла ошибка при бронировании")
