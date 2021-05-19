@@ -101,14 +101,16 @@ def removeReserv(reservId: Union[int, str]) -> bool:
 @connect
 def changeTime(reservId, newTime, tablesCount) -> int:
 	try:
-		cursor.execute('select id from stoppedReservs where startTime >= %s and endTime < %s', (newTime,))
+		cursor.execute('select id from stoppedReservs where startTime >= %s and endTime < %s', (newTime, newTime))
 		stop = cursor.fetchone()
 		if not stop is None: 
 			return -1
 		cursor.execute('update reservs set reservTime = %s, tablesCount = %s where id = %s', (str(newTime), int(reservId), int(tablesCount)))
 		connector.commit()
 		return 1
-	except: return 0
+	except Exception as e: 
+		print(e)
+		return 0
 
 @connect
 def stopReserv(startTime: str, endTime: str, description:str=None) -> bool:

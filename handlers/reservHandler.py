@@ -108,14 +108,13 @@ async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 		keyboard = types.InlineKeyboardMarkup(row_width=1)
 		for item in HOURS: 
 			count = TABLE_COUNTS - checkDate(f"{date} {item.split('-')[0]}:00")
-			if count > 0: callback = f"transfet_time={item.split()[0]}={count}"
+			if count > 0: callback = f"transfer_time={item.split()[0]}={count}"
 			else: callback = "pass"
 			keyboard.add(types.InlineKeyboardButton(text=item.replace('count', str(count)), callback_data=callback))
-		for item in HOURS: keyboard.add(types.InlineKeyboardButton(text=item.replace('count', f'{count}'), callback_data=callback))
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Выбранный день: {day}\nВыберите время брони:", reply_markup=keyboard)
 
 	elif cd.data.startswith('transfer_time'): 
-		text, time, count = cd.data.split('=')
+		_, time, count = cd.data.split('=')
 		count = int(count)
 		async with state.proxy() as data: data['time'] = time
 		twoTables = 'transfer_table_count=2' if count > 1 else "pass"
@@ -133,6 +132,6 @@ async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 			time = data['time']
 			date = data['date']
 		status = changeTime(reservId, f"{date} {time.split('-')[0]}:00", count)
-		if staus == 1: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Время бронирования перенесено!\n{getDay(date)} {time}\nВаше рабочее место в Зеленом театре ждет вас", reply_markup=getReservKB(reservId))
+		if status == 1: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Время бронирования перенесено!\n{getDay(date)} {time}\nВаше рабочее место в Зеленом театре ждет вас", reply_markup=getReservKB(reservId))
 		elif status == 0: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Возникла ошибка при бронировании, обратитесь к администратору за помощью")
 		elif status == -1: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="В это время создание бронирования заблокирования, обратитесь к администратору за сведеньями")

@@ -28,7 +28,7 @@ async def setLName(message: types.Message, state: FSMContext) -> None:
 	answ = message.text
 	async with state.proxy() as data:
 		data['lastName'] = answ
-	keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True).add(types.KeyboardButton(text="Send contact", request_contact=True))
+	keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True).add(types.KeyboardButton(text="Отправить контакт", request_contact=True))
 	await message.answer(local['input_phone'], reply_markup=keyboard)
 	await Registration.phone.set()
 

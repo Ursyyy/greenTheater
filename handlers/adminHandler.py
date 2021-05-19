@@ -74,8 +74,12 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 		keyboard.add(types.InlineKeyboardButton(text="Отменить", callback_data="cancel"))
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Выберите день для отмены бронирований:", reply_markup=keyboard)
 
+	elif cd.data.startswith('admin_exit'):
+		await state.finish()
+		await bot.delete_message(cd.from_user.id, cd.message.message_id)
+
 	elif cd.data.startswith('admin_notify_users'):
-		await bot.send_message(cd.from_user.id, 'Введите текст, который хотите отправить пользователям, как уведомление:')
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text='Введите текст, который хотите отправить пользователям, как уведомление:')
 		await Admin.notifyText.set()
 
 	elif cd.data.startswith('admin_get_stop_list'):
@@ -114,6 +118,7 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 		try: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Укажите причину, из-за которой отключен прием новых бронирований: ")
 		except: pass
 		await Admin.description.set()
+
 	elif cd.data.startswith('admin_confirm'):
 		async with state.proxy() as data: 
 			startTime = data['start time']
