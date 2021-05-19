@@ -1,15 +1,13 @@
-import aiocron
-from aiogram import executor, types
-from aiogram.dispatcher import FSMContext
-from bot import dp, bot
+from aiocron import crontab
+from bot import bot
 from os import remove
 from dates import getDaysForNotify, getDayForHourNotify, getCurDay, getDay
 from sqlRequests import getDailyReserv, getUser
-from config import EXCELS_SEND_TO_USERS
+from config import EXCELS_SEND_TO_USERS, ACTIVE
 from keyboards import getReservKB
 from exportToExcel import export
 
-@aiocron.crontab("0 9 * * *")
+@crontab("0 9 * * *")
 async def dailyMailing():
 	today = getDaysForNotify()
 	usersReservs = getDailyReserv(*today)
@@ -24,7 +22,7 @@ async def dailyMailing():
 			await bot.send_message(chat_id=item['user'], text=text, reply_markup=getReservKB(reserv[0]))
 
 
-@aiocron.crontab('0 9-17 * * *')
+@crontab('0 9-17 * * *')
 async def hourlyMailing():
 	today = getDayForHourNotify()
 	usersReservs = getDailyReserv(*today)
@@ -37,7 +35,7 @@ async def hourlyMailing():
 			text = f"Бронь на {getDay(str(reserv[1]).split()[0])}\nВремя: {time}-{endTime}:00\nКол-во столов: {reserv[-2]}\nСтатус: {status}"
 			await bot.send_message(chat_id=item['user'], text=text, reply_markup=getReservKB(reserv[0]))
 
-# @aiocron.crontab('0 19 * * *')
+@crontab('0 19 * * *')
 async def dailyReport():
 	day = getCurDay().split()[0]
 	export(day)

@@ -42,6 +42,7 @@ async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Выберите день:", reply_markup=keyboard)
 
 	elif cd.data.startswith('cancel'):
+		await state.finish()
 		await bot.delete_message(cd.from_user.id, cd.message.message_id)
 
 	elif cd.data.startswith('set_time'):

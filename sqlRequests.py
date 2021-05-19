@@ -1,4 +1,5 @@
 from typing import Union
+from typing_extensions import final
 import mysql.connector
 from dates import getCurDay
 from config import DB_ADDRESS, DB_BASE, DB_PASSWORD, DB_USER, DB_CHARSET, ACTIVE, STOPED, DELETED, ENDED
@@ -40,6 +41,15 @@ def checkUser(tid: Union[int, str]) -> bool:
 def addUser(tid:Union[int, str], tname:str, firstName: str, lastName: str, phone: str, commandName: str) -> None:
 	cursor.execute('insert into users (telegramId, username, firstName, lastName, phone, commandName) values (%s, %s, %s, %s, %s, %s)', (int(tid), tname, firstName, lastName, phone, commandName))
 	connector.commit()
+
+@connect
+def getAllUsers() -> list:
+	try:
+		cursor.execute('select telegramId from users')
+		usersList = [item[0] for item in cursor.fetchall()]
+	except: usersList = []
+	finally: return usersList
+
 @connect
 def getUser(username: str) -> int:
 	cursor.execute('select telegramId from users where username = %s', (username, ))
@@ -70,19 +80,16 @@ def checkDate(date: str) -> int:
 			count += item[0]
 	except: count = 0
 	finally: return count 
+
 @connect
 def getUserReserv(tid: Union[int, str]) -> list:
 	date = getCurDay()
 	try:
-		
 		cursor.execute('select * from reservs where userId = %s and reservTime > %s and (status = %s or status = %s)', (tid, date, ACTIVE, STOPED))
-		print(cursor.description)
 		reservList = cursor.fetchall()
-		print(reservList)
-	except Exception as e: 
-		print(e)
-		reservList = []
+	except: reservList = []
 	finally: return reservList
+
 @connect
 def removeReserv(reservId: Union[int, str]) -> bool:
 	try:
@@ -102,15 +109,25 @@ def changeTime(reservId, newTime, tablesCount) -> int:
 		connector.commit()
 		return 1
 	except: return 0
+
 @connect
-def stopReserv(startTime: str, endTime: str) -> bool:
+def stopReserv(startTime: str, endTime: str, description:str=None) -> bool:
 	try:
 		cursor.execute('update reservs set status = %s where reservTime >= %s and reservTime <= %s', (STOPED, startTime, endTime))
 		connector.commit()
-		cursor.execute('insert into stoppedReservs (startTime, endTime) values (%s, %s)', (startTime, endTime))
+		cursor.execute('insert into stoppedReservs (startTime, endTime, description) values (%s, %s, %s)', (startTime, endTime, description))
 		connector.commit()
 		return True
 	except: return False
+
+@connect
+def getStopsReserv() -> list:
+	try:
+		cursor.execute('select startTime, endTime, description from stoppedReservs where startTime > %s', (getCurDay(), ))
+		stopsList = cursor.fetchall()
+	except: stopsList = []
+	finally: return stopsList
+
 @connect
 def getDailyReserv(startTime: str, endTime: str):
 	try:
@@ -125,9 +142,7 @@ def getDailyReserv(startTime: str, endTime: str):
 				'list': cursor.fetchall()
 			})
 		return reservList
-	except Exception as e: 
-		print(e)
-		return []
+	except: return []
 
 @connect
 def fetchTableData(date):

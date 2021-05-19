@@ -1,3 +1,4 @@
+from aiogram.dispatcher.filters import state
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
 class Registration(StatesGroup):
@@ -9,3 +10,5 @@ class Registration(StatesGroup):
 class Admin(StatesGroup): 
     password = State()
     setUser = State()
+    notifyText = State()
+    description = State()
