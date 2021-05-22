@@ -41,9 +41,9 @@ async def getReserv(message: types.Message) -> None:
 	# [(1, '130923154', datetime.datetime(2021, 5, 16, 14, 7, 2), datetime.datetime(2021, 5, 20, 15, 0), 1, None)]
 	for item in reservs:
 		time = str(item[3]).split()[1][:5]
-		endTime = int(time[:2]) + 1
+		endTime = str(item[4]).split()[1][:5]
 		status = 'активна' if item[-2] == ACTIVE else 'остановлена'
-		text = f"Бронь на {getDay(str(item[3]).split()[0])}\nВремя: {time}-{endTime}:00\nКол-во столов: {item[-3]}\nСтатус: {status}"
+		text = f"Бронь на {getDay(str(item[3]).split()[0])}\nВремя: {time}-{endTime}\nКол-во столов: {item[-3]}\nСтатус: {status}"
 		await message.answer(text, reply_markup=getReservKB(item[0]))
 
 executor.start_polling(dp, skip_updates=True)

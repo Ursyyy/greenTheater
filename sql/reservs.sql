@@ -8,6 +8,7 @@ CREATE TABLE `reservs` (
   `userId` varchar(255) DEFAULT NULL,
   `createTime` datetime DEFAULT NULL COMMENT 'create time',
   `reservTime` datetime DEFAULT NULL,
+  `endTime` DATETIME DEFAULT NULL ,
   `tablesCount` int DEFAULT NULL,
   `status` varchar(127) NOT NULL,
   `commentary` varchar(255) DEFAULT NULL,

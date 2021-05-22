@@ -57,27 +57,34 @@ def getUser(username: str) -> int:
 	if result is None: return -1
 	return result[0]
 @connect
-def addReserv(tid: Union[int, str], reservTime: str, tablesCount: Union[int, str], comment:str=None) -> int: 
+def addReserv(tid: Union[int, str], reservTime: str, endTime:str, tablesCount: Union[int, str], comment:str=None) -> int: 
 	try:
-		cursor.execute('select id from stoppedReservs where startTime <= %s and endTime > %s', (reservTime, reservTime))
+		cursor.execute('select id from stoppedReservs where startTime <= %s and endTime > %s', (reservTime, endTime))
 		stop = cursor.fetchone()
 		if not stop is None: 
 			createdId = -2
 			return
-		cursor.execute('insert into reservs (userId, createTime, reservTime, tablesCount, status, commentary) values (%s, %s, %s, %s, %s, %s)', 
-			(int(tid), getCurDay(), reservTime, int(tablesCount), ACTIVE, comment))
+		cursor.execute('insert into reservs (userId, createTime, reservTime, endTime, tablesCount, status, commentary) values (%s, %s, %s, %s, %s, %s, %s)', 
+			(int(tid), getCurDay(), reservTime, endTime, int(tablesCount), ACTIVE, comment))
 		connector.commit()
 		cursor.execute('select id from reservs where userId = %s and createTime = %s and reservTime = %s', (int(tid), getCurDay(), reservTime))
 		createdId = cursor.fetchone()[0]
 	except: createdId = -1
 	finally: return createdId 
+
 @connect
-def checkDate(date: str) -> int:
+def checkDate(startTime: str, endTime: str) -> int:
 	try: 
-		cursor.execute('select tablesCount from reservs where reservTime = %s and status != %s', (date,DELETED))
+		# 
+		# 
+		# 
+		print(startTime, endTime)
+		cursor.execute('select * from reservs where reservTime >= %s and endTime <= %s and status != %s', (startTime, endTime,DELETED))
 		count = 0
-		for item in cursor.fetchall():
-			count += item[0]
+		lst = cursor.fetchall()
+		for item in lst:
+			print(item)
+			count += 1
 	except: count = 0
 	finally: return count 
 
@@ -85,7 +92,7 @@ def checkDate(date: str) -> int:
 def getUserReserv(tid: Union[int, str]) -> list:
 	date = getCurDay()
 	try:
-		cursor.execute('select * from reservs where userId = %s and reservTime > %s and (status = %s or status = %s)', (tid, date, ACTIVE, STOPED))
+		cursor.execute('select * from reservs where userId = %s and reservTime >= %s and (status = %s or status = %s)', (tid, date, ACTIVE, STOPED))
 		reservList = cursor.fetchall()
 	except: reservList = []
 	finally: return reservList
@@ -98,14 +105,15 @@ def removeReserv(reservId: Union[int, str]) -> bool:
 		return True
 	except Exception as e: 
 		return False
+
 @connect
-def changeTime(reservId, newTime, tablesCount) -> int:
+def changeTime(reservId, newTime, endTime, tablesCount) -> int:
 	try:
 		cursor.execute('select id from stoppedReservs where startTime >= %s and endTime < %s', (newTime, newTime))
 		stop = cursor.fetchone()
 		if not stop is None: 
 			return -1
-		cursor.execute('update reservs set reservTime = %s, tablesCount = %s where id = %s', (str(newTime), int(reservId), int(tablesCount)))
+		cursor.execute('update reservs set reservTime = %s, endTime = %s, tablesCount = %s where id = %s', (str(newTime), str(endTime), int(reservId), int(tablesCount)))
 		connector.commit()
 		return 1
 	except Exception as e: 
@@ -115,7 +123,10 @@ def changeTime(reservId, newTime, tablesCount) -> int:
 @connect
 def stopReserv(startTime: str, endTime: str, description:str=None) -> bool:
 	try:
-		cursor.execute('update reservs set status = %s where reservTime >= %s and reservTime <= %s', (STOPED, startTime, endTime))
+		#
+		#
+		#
+		cursor.execute('update reservs set status = %s where reservTime >= %s and endTime <= %s', (STOPED, startTime, endTime))
 		connector.commit()
 		cursor.execute('insert into stoppedReservs (startTime, endTime, description) values (%s, %s, %s)', (startTime, endTime, description))
 		connector.commit()
@@ -133,12 +144,12 @@ def getStopsReserv() -> list:
 @connect
 def getDailyReserv(startTime: str, endTime: str):
 	try:
-		cursor.execute('select distinct userId from reservs where reservTime >= %s and reservTime <= %s and status = %s' , (startTime, endTime, ACTIVE))
+		cursor.execute('select distinct userId from reservs where reservTime >= %s and endTime <= %s and status = %s' , (startTime, endTime, ACTIVE))
 		users = cursor.fetchall()
 		if users == []: return []
 		reservList = []
 		for user in users:
-			cursor.execute('select id, reservTime, tablesCount, status from reservs where reservTime >= %s and reservTime <= %s and userId = %s and status = %s', (startTime, endTime, int(user[0]), ACTIVE))
+			cursor.execute('select id, reservTime, tablesCount, status from reservs where reservTime >= %s and endTime <= %s and userId = %s and status = %s', (startTime, endTime, int(user[0]), ACTIVE))
 			reservList.append({
 				'user': int(user[0]),
 				'list': cursor.fetchall()
