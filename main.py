@@ -18,7 +18,7 @@ async def startReserv(message: types.Message):
 	keyboard = types.InlineKeyboardMarkup(row_width=1)
 	dates = getDays()
 	for item in dates:
-		keyboard.add(types.InlineKeyboardButton(text=item['dayName'], callback_data=f"check_date={item['dayStamp']}"))
+		keyboard.add(types.InlineKeyboardButton(text=item['dayName'], callback_data=f"check_date={item['dayStamp']}=reserv"))
 	keyboard.add(types.InlineKeyboardButton(text="Отменить", callback_data="cancel"))
 	await message.answer("Выберите день:", reply_markup=keyboard)
 

@@ -78,7 +78,6 @@ def checkDate(startTime: str, endTime: str) -> int:
 		# 
 		# 
 		# 
-		print(startTime, endTime)
 		cursor.execute('select * from reservs where reservTime >= %s and endTime <= %s and status != %s', (startTime, endTime,DELETED))
 		count = 0
 		lst = cursor.fetchall()
@@ -113,7 +112,7 @@ def changeTime(reservId, newTime, endTime, tablesCount) -> int:
 		stop = cursor.fetchone()
 		if not stop is None: 
 			return -1
-		cursor.execute('update reservs set reservTime = %s, endTime = %s, tablesCount = %s where id = %s', (str(newTime), str(endTime), int(reservId), int(tablesCount)))
+		cursor.execute('update reservs set reservTime = %s, endTime = %s, tablesCount = %s where id = %s', (str(newTime), str(endTime),int(tablesCount), int(reservId), ))
 		connector.commit()
 		return 1
 	except Exception as e: 

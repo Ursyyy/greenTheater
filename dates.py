@@ -26,7 +26,7 @@ def getDays(maxRange:int=10) -> list:
 			'dayName': f"{str(day.day)} {MONTH[day.month]} ({DAYS[day.weekday()]})",
 			'dayStamp': str(date).split()[0]
 		})
-	return daysList[:5]
+	return daysList[:5] if maxRange < 11 else daysList
   
 def getDay(day): 
 	day = datetime.datetime.strptime(day, '%Y-%m-%d')
