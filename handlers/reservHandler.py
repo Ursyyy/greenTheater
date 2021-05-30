@@ -112,13 +112,13 @@ async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 		if isReserv:
 			reversId = addReserv(cd.from_user.id, f"{date} {startTime}:00", f"{date} {endTime}:00", count)
 			if reversId >= 0:
-				await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Бронь успешно создана!\n{getDay(date)} с {startTime}:00 по {endTime}:00\nВаше рабочее место в Зеленом театре ждет вас", reply_markup=getReservKB(reversId))
+				await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Вжууух! Время коworkать! Бронь успешно создана. А значит, рабочее open-air место {getDay(date)} с {startTime}:00 по {endTime}:00 ждет тебя в Зелёном театре.", reply_markup=getReservKB(reversId))
 			elif reversId == -1: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Возникла ошибка при бронировании, обратитесь к администратору за помощью")
 			elif reversId == -2: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="В это время создание бронирования заблокирования, обратитесь к администратору за сведеньями")
 		else:
 			async with state.proxy() as data: reservId = data['id']
 			status = changeTime(reservId, f"{date} {startTime}:00", f"{date} {endTime}:00", count)
-			if status == 1: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Время бронирования перенесено!\n{getDay(date)} с {startTime}:00 по {endTime}:00\nВаше рабочее место в Зеленом театре ждет вас", reply_markup=getReservKB(reservId))
+			if status == 1: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Время бронирования перенесено!\n Рабочее open-air место{getDay(date)} с {startTime}:00 по {endTime}:00 ждет тебя в Зелёном театре.", reply_markup=getReservKB(reservId))
 			elif status == 0: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Возникла ошибка при бронировании, обратитесь к администратору за помощью")
 			elif status == -1: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="В это время создание бронирования заблокирования, обратитесь к администратору за сведеньями")
 

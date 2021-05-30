@@ -7,8 +7,8 @@ DB_BASE = 'green'
 DB_CHARSET="utf8mb4"
 
 #Необходимо для подключния к докам с локализацией
-PATH_TO_JSON_FILE = ""
-TEXT_VARIABLES = ""
+PATH_TO_JSON_FILE = "./PythonProject.json"
+TABLE_ID = "1CjX0ME7KTsYVmTuxjdFKSbOg5fyKNrCHhCGSPKcm434"
 
 #Max count of tables
 TABLE_COUNTS = 35

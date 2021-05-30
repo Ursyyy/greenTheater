@@ -1,11 +1,10 @@
 from aiocron import crontab
 from bot import bot
-from os import remove
-from dates import getDaysForNotify, getDayForHourNotify, getCurDay, getDay
-from sqlRequests import getDailyReserv, getUser
-from config import EXCELS_SEND_TO_USERS, ACTIVE
+from dates import getCurDay, getDaysForNotify, getDayForHourNotify, getDay, START_HOUR
+from sqlRequests import getDailyReserv, getUsersByReservTime, getReservedTablesAtTime, getUsersForSheets
+from sheets import WriteDataToSheets, WriteUsers
+from config import ACTIVE, TABLE_COUNTS
 from keyboards import getReservKB
-from exportToExcel import export
 
 @crontab("0 9 * * *")
 async def dailyMailing():
@@ -35,15 +34,14 @@ async def hourlyMailing():
 			text = f"Бронь на {getDay(str(reserv[1]).split()[0])}\nВремя: {time}-{endTime}:00\nКол-во столов: {reserv[-2]}\nСтатус: {status}"
 			await bot.send_message(chat_id=item['user'], text=text, reply_markup=getReservKB(reserv[0]))
 
-@crontab('0 19 * * *')
-async def dailyReport():
-	day = getCurDay().split()[0]
-	export(day)
-	usersToSend = EXCELS_SEND_TO_USERS
-	if type(usersToSend) is str: usersToSend = [usersToSend]
-	with open('./excels/' + day + '.xlsx', 'rb') as doc:
-		for user in usersToSend:
-			userId = getUser(user)
-			if userId == -1: return
-			await bot.send_document(userId, doc, caption=f"Отчет за сегодня({day})")
-	remove('./excels/' + day + '.xlsx')
+# @crontab("*/10 9-19 * * *")
+def saveToSheets():
+	date = "2021-06-04"#getCurDay().split()[0]
+	resultList = []
+	for hour in START_HOUR:
+		users = ', '.join(getUsersByReservTime(f"{date} {hour}:00:00"))
+		tablesCount = getReservedTablesAtTime(f"{date} {hour}:00:00", f"{date} {hour}:59:59")
+		resultList.append([date, f'{hour}:00 - {hour + 1}:00', tablesCount, TABLE_COUNTS - tablesCount, users])
+	WriteDataToSheets(date, resultList)
+	WriteUsers(getUsersForSheets())
+saveToSheets()

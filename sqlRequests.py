@@ -1,5 +1,4 @@
 from typing import Union
-from typing_extensions import final
 import mysql.connector
 from dates import getCurDay
 from config import DB_ADDRESS, DB_BASE, DB_PASSWORD, DB_USER, DB_CHARSET, ACTIVE, STOPED, DELETED, ENDED
@@ -51,6 +50,16 @@ def getAllUsers() -> list:
 	finally: return usersList
 
 @connect
+def getUsersForSheets() -> list:
+	try:
+		cursor.execute('''
+			select concat(firstName, " ", lastName), commandName, phone, username
+			from users
+		''')
+		return cursor.fetchall()
+	except: return []
+
+@connect
 def getUser(username: str) -> int:
 	cursor.execute('select telegramId from users where username = %s', (username, ))
 	result = cursor.fetchone()
@@ -75,17 +84,38 @@ def addReserv(tid: Union[int, str], reservTime: str, endTime:str, tablesCount: U
 @connect
 def checkDate(startTime: str, endTime: str) -> int:
 	try: 
-		# 
-		# 
-		# 
-		cursor.execute('select * from reservs where reservTime >= %s and endTime <= %s and status != %s', (startTime, endTime,DELETED))
+		cursor.execute('select tablesCount from reservs where reservTime >= %s and endTime <= %s and status != %s', (startTime, endTime,DELETED))
 		count = 0
-		lst = cursor.fetchall()
-		for item in lst:
-			print(item)
-			count += 1
+		for item in cursor.fetchall():
+			count += item[0]
 	except: count = 0
 	finally: return count 
+
+@connect 
+def getUsersByReservTime(reservTime: str) -> list:
+	try:
+		cursor.execute("""
+		select concat(users.firstName, " ",users.lastName, " (",users.commandName, ")")
+		from reservs
+		inner join users
+		on reservs.userId = users.telegramId
+		where cast(%s as datetime) between cast(reservs.reservTime as DATETIME) and cast(reservs.endTime as datetime)
+		""", (reservTime, ))
+		return [item[0] for item in cursor.fetchall()]
+	except: return []
+
+@connect
+def getReservedTablesAtTime(startTime: str, endTime: str) -> int:
+	try:
+		cursor.execute("""
+		select sum(tablesCount)
+		from reservs
+		where cast(%s as datetime) and cast(%s as datetime) between cast(reservTime as DATETIME) and cast(endTime as datetime)
+		""", (startTime, endTime))
+		return int(cursor.fetchone()[0])
+	except: return 0
+
+
 
 @connect
 def getUserReserv(tid: Union[int, str]) -> list:
@@ -133,6 +163,22 @@ def stopReserv(startTime: str, endTime: str, description:str=None) -> bool:
 	except: return False
 
 @connect
+def getWorkloadByDate(date: str) -> list:
+	resultList = []
+	try:
+		cursor.execute('''
+		select reservs.reservTime, reservs.endTime, reservs.tablesCount, users.firstName, users.lastName, users.phone, users.commandName
+		from reservs
+		inner join users
+		on reservs.userId = users.telegramId
+		where reservTime > %s and reservTime < %s
+		order by reservTime
+		''', (f"{date} 09:00:00", f"{date} 19:00:00"))
+		resultList = cursor.fetchall()
+	except: resultList = []
+	finally: return resultList
+
+@connect
 def getStopsReserv() -> list:
 	try:
 		cursor.execute('select startTime, endTime, description from stoppedReservs where startTime > %s', (getCurDay(), ))
@@ -155,23 +201,3 @@ def getDailyReserv(startTime: str, endTime: str):
 			})
 		return reservList
 	except: return []
-
-@connect
-def fetchTableData(date):
-	cursor.execute('select * from users')
-	users_header = [row[0] for row in cursor.description]
-	users = {}
-	users_rows = []
-	for i in cursor.fetchall():
-		users_rows.append(i)
-		users[i[0]] = i[1]
-	cursor.execute('select * from reservs where status != %s', (ENDED, ))
-	reserv_header = [row[0] for row in cursor.description]
-	reserv_data = cursor.fetchall()
-	reserv_rows = []
-	for i in reserv_data:
-		row = [str(j) if count != 1 else users[int(j)] for count, j in enumerate(i) ]
-		reserv_rows.append(row)
-	cursor.execute('update reservs set status = %s where reservTime < %s', (ENDED, date))
-	connector.commit()
-	return [reserv_header, reserv_rows], [users_header, users_rows]

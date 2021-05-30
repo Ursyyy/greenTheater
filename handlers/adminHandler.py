@@ -2,8 +2,8 @@ from aiogram.dispatcher import FSMContext
 from aiogram import types
 from bot import bot, dp
 from keyboards import getReservKB
-from dates import getDays, START_HOUR, END_HOUR, getDay, getStartHours, getEndHours
-from sqlRequests import stopReserv, checkDate, getUser, addReserv, getAllUsers, getStopsReserv
+from dates import getCurDay, getDays, START_HOUR, END_HOUR, getDay, getStartHours, getEndHours
+from sqlRequests import stopReserv, checkDate, getUser, addReserv, getAllUsers, getWorkloadByDate
 from state_machine import Admin
 from config import PASSWORD, ADMIN_COMMAND, TABLE_COUNTS
 
@@ -55,9 +55,9 @@ async def adminPass(message: types.Message, state: FSMContext):
 	answer = message.text
 	if answer == PASSWORD:
 		keyboard = types.InlineKeyboardMarkup(row_width=1).add(*[
-			types.InlineKeyboardButton('Отменить бронирования определенного дня', callback_data="admin_cancel_reserv"),
+			types.InlineKeyboardButton('Отменить бронирования', callback_data="admin_cancel_reserv"),
 			types.InlineKeyboardButton('Сделать уведомление для пользователей', callback_data="admin_notify_users"),
-			types.InlineKeyboardButton("Вывести список небронеспособного времени", callback_data='admin_get_stop_list'),
+			types.InlineKeyboardButton("Загруженность столов", callback_data='admin_get_workout'),
 			types.InlineKeyboardButton('Забронировать', callback_data='admin_reserv'),
 			types.InlineKeyboardButton('Выход', callback_data='admin_exit')
 		])
@@ -82,12 +82,15 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text='Введите текст, который хотите отправить пользователям, как уведомление:')
 		await Admin.notifyText.set()
 
-	elif cd.data.startswith('admin_get_stop_list'):
-		try:await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Список небронеспособного времени")
-		except: pass
-		try: 
-			for item in getStopsReserv(): await bot.send_message(cd.from_user.id, text=f'{getDay(str(item[0]).split()[0])}\nС {item[0].hour}:00 по {item[1].hour}:00\nПричина: {item[2]}')
-		except: pass
+	elif cd.data.startswith('admin_get_workout'):
+		workout = getWorkloadByDate(getCurDay().split()[0])
+		if len(workout) == 0:
+			await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text='На сегодня нет бронирований')
+			return
+		message = f"Бронирования на {getDay(str(workout[0][0]).split()[0])}"
+		for item in workout:
+			message += f"\n\nВремя: {str(item[0]).split()[1][:5]} - {str(item[1]).split()[1][:5]}\nКол-во столов: {item[2]}\nКем: {item[3]} {item[4]}({item[5]})"
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=message)
 
 	elif cd.data.startswith('admin_cancel_date'):
 		date = cd.data.split('=')[1]
@@ -113,8 +116,8 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 				data['start time'] = f"{date} {data['time']}:00"
 				data['end time'] = f"{date} {cd.data.split('=')[1]}:00"
 			else:
-				data['start time'] = f"{date} 10:00"
-				data['end time'] = f"{date} 19:00"
+				data['start time'] = f"{date} 10:00:00"
+				data['end time'] = f"{date} 19:00:00"
 		try: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Укажите причину, из-за которой отключен прием новых бронирований: ")
 		except: pass
 		await Admin.description.set()
@@ -125,6 +128,7 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 			endTime = data['end time']
 			descr = data['description']
 		await state.finish()
+		await notifyUsers(f"{getDay(str(startTime).split()[0])} C {str(startTime).split()[1][:5]} по {str(endTime).split()[1][:5]} бронирования были остановленны\nПричина: {descr}")
 		if stopReserv(startTime, endTime, descr):
 			await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Бронирования в это время остановленны")
 		else: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text='Возникла ошибка при отмене бронирований')
