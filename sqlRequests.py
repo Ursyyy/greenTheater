@@ -84,12 +84,16 @@ def addReserv(tid: Union[int, str], reservTime: str, endTime:str, tablesCount: U
 @connect
 def checkDate(startTime: str, endTime: str) -> int:
 	try: 
-		cursor.execute('select tablesCount from reservs where reservTime >= %s and endTime <= %s and status != %s', (startTime, endTime,DELETED))
-		count = 0
-		for item in cursor.fetchall():
-			count += item[0]
+		cursor.execute('''
+			select sum(tablesCount) from reservs 
+			where cast(%s as datetime) between cast(reservTime as DATETIME) and cast(endTime as datetime)
+			and cast(%s as datetime) between cast(reservTime as DATETIME) and cast(endTime as datetime)
+			and status != %s
+		''', (startTime, endTime,DELETED))
+		count = cursor.fetchone()[0]
+		print(count)
 	except: count = 0
-	finally: return count 
+	finally: return count
 
 @connect 
 def getUsersByReservTime(reservTime: str) -> list:

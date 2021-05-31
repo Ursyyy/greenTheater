@@ -34,6 +34,8 @@ async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 
 	elif cd.data.startswith('back_to_dates'):
 		keyboard = types.InlineKeyboardMarkup(row_width=1)
+		async with state.proxy as data:
+			isReserv = 'reserv' if data['isReserv'] else 'trans'
 		dates = getDays()
 		for item in dates:
 			keyboard.add(types.InlineKeyboardButton(text=item['dayName'], callback_data=f"check_date={item['dayStamp']}"))
@@ -56,7 +58,7 @@ async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 			if count > 0: callback = f"set_end_time={item}={count}"
 			else: callback = "pass"
 			keyboard.add(types.InlineKeyboardButton(text=f"{item}:00 ({count} мест свободно)", callback_data=callback))
-		keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f"check_date={date}"))
+		keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f"check_date={date}=reserv"))
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Выбранный день: {day}\nВыберите конечное время брони:", reply_markup=keyboard)
 
 
@@ -76,7 +78,11 @@ async def ReservHandler(cd: types.CallbackQuery, state: FSMContext):
 		async with state.proxy() as data:
 			data['start_time'] = 10
 			data['end_time'] = 18
-		count = 2
+			date = data['date']
+		count = TABLE_COUNTS - checkDate(f"{date} 10:00:00", f"{date} 18:00:00")
+		if count <= 0:  
+			await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="К сожалению, в этот день все места заняты(")
+			return
 		twoTables = 'table_count=2' if count > 1 else "pass"
 		keyboard = types.InlineKeyboardMarkup(row_width=1).add(*[
 			types.InlineKeyboardButton(text='1 место', callback_data='table_count=1'),
