@@ -40,6 +40,15 @@ async def setContact(message: types.Message, state: FSMContext) -> None:
 	await message.answer(local['input_command'], reply_markup=types.ReplyKeyboardRemove(True))
 	await Registration.command.set()
 
+
+@dp.message_handler(state=Registration.phone)
+async def setContact(message: types.Message, state: FSMContext) -> None:
+	async with state.proxy() as data:
+		data['phone'] = message.text
+	await message.answer(local['input_command'], reply_markup=types.ReplyKeyboardRemove(True))
+	await Registration.command.set()
+
+
 @dp.message_handler(state=Registration.command)
 async def setCommand(message: types.Message, state: FSMContext) -> None:
 	answer = message.text

@@ -5,7 +5,8 @@ from keyboards import getReservKB
 from dates import getCurDay, getDays, START_HOUR, END_HOUR, getDay, getStartHours, getEndHours
 from sqlRequests import stopReserv, checkDate, getUser, addReserv, getAllUsers, getWorkloadByDate
 from state_machine import Admin
-from config import PASSWORD, ADMIN_COMMAND, TABLE_COUNTS
+from notify import saveToSheets
+from config import PASSWORD, ADMIN_COMMAND, TABLE_COUNTS, TABLE_ID
 
 async def notifyUsers(message):
 	for user in getAllUsers(): await bot.send_message(user, message)
@@ -57,7 +58,8 @@ async def adminPass(message: types.Message, state: FSMContext):
 		keyboard = types.InlineKeyboardMarkup(row_width=1).add(*[
 			types.InlineKeyboardButton('Отменить бронирования', callback_data="admin_cancel_reserv"),
 			types.InlineKeyboardButton('Сделать уведомление для пользователей', callback_data="admin_notify_users"),
-			types.InlineKeyboardButton("Загруженность столов", callback_data='admin_get_workout'),
+			types.InlineKeyboardButton("Записать загруженность столов в таблицу", callback_data='admin_online_workout'),
+			types.InlineKeyboardButton("Отправить загруженность столов в чат", callback_data='admin_chat_workout'),
 			types.InlineKeyboardButton('Забронировать', callback_data='admin_reserv'),
 			types.InlineKeyboardButton('Выход', callback_data='admin_exit')
 		])
@@ -78,19 +80,24 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 		await state.finish()
 		await bot.delete_message(cd.from_user.id, cd.message.message_id)
 
-	elif cd.data.startswith('admin_notify_users'):
-		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text='Введите текст, который хотите отправить пользователям, как уведомление:')
-		await Admin.notifyText.set()
+	elif cd.data.startswith('admin_online_workout'):
+		await saveToSheets()
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text='Загруженность была выгружена в таблицу https://docs.google.com/spreadsheets/d/' + TABLE_ID)
 
-	elif cd.data.startswith('admin_get_workout'):
+	elif cd.data.startswith('admin_chat_workout'):
 		workout = getWorkloadByDate(getCurDay().split()[0])
 		if len(workout) == 0:
 			await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text='На сегодня нет бронирований')
 			return
-		message = f"Бронирования на {getDay(str(workout[0][0]).split()[0])}"
+		message = f"Бронирования на {getDay(str(workout[0][0]).split()[0])}\nВсего бронирований - {len(workout)}"
 		for item in workout:
-			message += f"\n\nВремя: {str(item[0]).split()[1][:5]} - {str(item[1]).split()[1][:5]}\nКол-во столов: {item[2]}\nКем: {item[3]} {item[4]}({item[5]})"
+			message += f"\n\nВремя: {str(item[0]).split()[1][:5]} - {str(item[1]).split()[1][:5]}\nКол-во столов: {item[2]}\nКем: {item[3]} {item[4]}({item[6]})"
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=message)
+
+
+	elif cd.data.startswith('admin_notify_users'):
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text='Введите текст, который хотите отправить пользователям, как уведомление:')
+		await Admin.notifyText.set()
 
 	elif cd.data.startswith('admin_cancel_date'):
 		date = cd.data.split('=')[1]

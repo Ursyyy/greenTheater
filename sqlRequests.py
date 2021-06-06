@@ -78,7 +78,9 @@ def addReserv(tid: Union[int, str], reservTime: str, endTime:str, tablesCount: U
 		connector.commit()
 		cursor.execute('select id from reservs where userId = %s and createTime = %s and reservTime = %s', (int(tid), getCurDay(), reservTime))
 		createdId = cursor.fetchone()[0]
-	except: createdId = -1
+	except Exception as e: 
+		print(e)
+		createdId = -1
 	finally: return createdId 
 
 @connect
@@ -91,7 +93,7 @@ def checkDate(startTime: str, endTime: str) -> int:
 			and status != %s
 		''', (startTime, endTime,DELETED))
 		count = cursor.fetchone()[0]
-		print(count)
+		count = 0 if count is None else count
 	except: count = 0
 	finally: return count
 
@@ -104,7 +106,8 @@ def getUsersByReservTime(reservTime: str) -> list:
 		inner join users
 		on reservs.userId = users.telegramId
 		where cast(%s as datetime) between cast(reservs.reservTime as DATETIME) and cast(reservs.endTime as datetime)
-		""", (reservTime, ))
+		and reservs.status != %s
+		""", (reservTime, DELETED))
 		return [item[0] for item in cursor.fetchall()]
 	except: return []
 
@@ -115,7 +118,8 @@ def getReservedTablesAtTime(startTime: str, endTime: str) -> int:
 		select sum(tablesCount)
 		from reservs
 		where cast(%s as datetime) and cast(%s as datetime) between cast(reservTime as DATETIME) and cast(endTime as datetime)
-		""", (startTime, endTime))
+		and status != %s
+		""", (startTime, endTime, DELETED))
 		return int(cursor.fetchone()[0])
 	except: return 0
 
@@ -146,7 +150,7 @@ def changeTime(reservId, newTime, endTime, tablesCount) -> int:
 		stop = cursor.fetchone()
 		if not stop is None: 
 			return -1
-		cursor.execute('update reservs set reservTime = %s, endTime = %s, tablesCount = %s where id = %s', (str(newTime), str(endTime),int(tablesCount), int(reservId), ))
+		cursor.execute('update reservs set reservTime = %s, endTime = %s, tablesCount = %s, status = %s where id = %s', (str(newTime), str(endTime),int(tablesCount), int(reservId), ACTIVE))
 		connector.commit()
 		return 1
 	except Exception as e: 

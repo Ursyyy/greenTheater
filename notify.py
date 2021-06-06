@@ -34,16 +34,16 @@ async def hourlyMailing():
 			text = f"Бронь на {getDay(str(reserv[1]).split()[0])}\nВремя: {time}-{endTime}:00\nКол-во столов: {reserv[-2]}\nСтатус: {status}"
 			await bot.send_message(chat_id=item['user'], text=text, reply_markup=getReservKB(reserv[0]))
 
-@crontab("*/10 9-19 * * *")
-def saveByCron():
-	saveToSheets()
-
-def saveToSheets():
+async def saveToSheets():
 	date = getCurDay().split()[0]
 	resultList = []
 	for hour in START_HOUR:
 		users = ', '.join(getUsersByReservTime(f"{date} {hour}:00:00"))
 		tablesCount = getReservedTablesAtTime(f"{date} {hour}:00:00", f"{date} {hour}:59:59")
 		resultList.append([date, f'{hour}:00 - {hour + 1}:00', tablesCount, TABLE_COUNTS - tablesCount, users])
-	WriteDataToSheets(date, resultList)
-	WriteUsers(getUsersForSheets())
+	try:
+		WriteDataToSheets(date, resultList)
+	except Exception as e: print(e)
+	try:
+		WriteUsers(getUsersForSheets())
+	except: pass
