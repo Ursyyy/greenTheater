@@ -39,6 +39,7 @@ def getCurDay():
 def getStartHours(date):
 	now = datetime.datetime.now()
 	if datetime.datetime.strptime(str(date).split()[0], '%Y-%m-%d') == now.time():
+		print(datetime.datetime.strptime(str(date).split()[0], '%Y-%m-%d'))
 		return [hour for hour in START_HOUR if datetime.datetime.strptime(f'{hour}:00:00', '%H:%M:%S').time() > now.time() ]
 	return START_HOUR
 
