@@ -1,6 +1,6 @@
 import datetime
 
-DAYS = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница"]
+DAYS = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", 'BC']
 MONTH = ["", "Января", "Февряля", "Марта", "Апреля", "Мая", "Июня", "Июля", "Августа", "Сентября", "Октября", "Ноября", "Декабря"]
 HOURS = ['10:00-11:00 (count мест свободно)', '11:00-12:00 (count)', '12:00-13:00 (count)', '13:00-14:00 (count)', '14:00-15:00 (count)', '15:00-16:00 (count)', '16:00-17:00 (count)', '17:00-18:00 (count)']
   
@@ -26,7 +26,7 @@ def getDays(maxRange:int=10) -> list:
 			'dayName': f"{str(day.day)} {MONTH[day.month]} ({DAYS[day.weekday()]})",
 			'dayStamp': str(date).split()[0]
 		})
-	return daysList[:5]
+	return daysList[:5] if maxRange < 11 else daysList
   
 def getDay(day): 
 	day = datetime.datetime.strptime(day, '%Y-%m-%d')
@@ -38,8 +38,12 @@ def getCurDay():
 
 def getStartHours(date):
 	now = datetime.datetime.now()
+<<<<<<< HEAD
 	if datetime.datetime.strptime(str(date).split()[0], '%Y-%m-%d') == now.time():
 		print(datetime.datetime.strptime(str(date).split()[0], '%Y-%m-%d'))
+=======
+	if datetime.datetime.strptime(str(date).split()[0], '%Y-%m-%d') == datetime.datetime.strptime(str(now).split()[0], '%Y-%m-%d'):
+>>>>>>> 2db9a6c3f42ad4b9b08816f169911ded86553c5b
 		return [hour for hour in START_HOUR if datetime.datetime.strptime(f'{hour}:00:00', '%H:%M:%S').time() > now.time() ]
 	return START_HOUR
 

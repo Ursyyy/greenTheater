@@ -2,10 +2,11 @@ from aiogram.dispatcher import FSMContext
 from aiogram import types
 from bot import bot, dp
 from keyboards import getReservKB
-from dates import getDays, START_HOUR, END_HOUR, getDay, HOURS
-from sqlRequests import stopReserv, checkDate, getUser, addReserv, getAllUsers, getStopsReserv
+from dates import getCurDay, getDays, START_HOUR, END_HOUR, getDay, getStartHours, getEndHours
+from sqlRequests import stopReserv, checkDate, getUser, addReserv, getAllUsers, getWorkloadByDate
 from state_machine import Admin
-from config import PASSWORD, ADMIN_COMMAND, TABLE_COUNTS
+from notify import saveToSheets
+from config import PASSWORD, ADMIN_COMMAND, TABLE_COUNTS, TABLE_ID
 
 async def notifyUsers(message):
 	for user in getAllUsers(): await bot.send_message(user, message)
@@ -26,7 +27,7 @@ async def setUserName(message: types.Message, state: FSMContext):
 	async with state.proxy() as data: 
 		data['user'] = user
 	keyboard = types.InlineKeyboardMarkup(row_width=1)
-	for item in getDays():
+	for item in getDays(14):
 		keyboard.add(types.InlineKeyboardButton(text=item['dayName'], callback_data=f"admin_date_reserv={item['dayStamp']}"))
 	keyboard.add(types.InlineKeyboardButton(text="Отменить", callback_data="cancel"))
 	await message.answer(text="Выберите день для бронирования:", reply_markup=keyboard)
@@ -55,9 +56,10 @@ async def adminPass(message: types.Message, state: FSMContext):
 	answer = message.text
 	if answer == PASSWORD:
 		keyboard = types.InlineKeyboardMarkup(row_width=1).add(*[
-			types.InlineKeyboardButton('Отменить бронирования определенного дня', callback_data="admin_cancel_reserv"),
+			types.InlineKeyboardButton('Отменить бронирования', callback_data="admin_cancel_reserv"),
 			types.InlineKeyboardButton('Сделать уведомление для пользователей', callback_data="admin_notify_users"),
-			types.InlineKeyboardButton("Вывести список небронеспособного времени", callback_data='admin_get_stop_list'),
+			types.InlineKeyboardButton("Записать загруженность столов в таблицу", callback_data='admin_online_workout'),
+			types.InlineKeyboardButton("Отправить загруженность столов в чат", callback_data='admin_chat_workout'),
 			types.InlineKeyboardButton('Забронировать', callback_data='admin_reserv'),
 			types.InlineKeyboardButton('Выход', callback_data='admin_exit')
 		])
@@ -78,16 +80,24 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 		await state.finish()
 		await bot.delete_message(cd.from_user.id, cd.message.message_id)
 
+	elif cd.data.startswith('admin_online_workout'):
+		await saveToSheets()
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text='Загруженность была выгружена в таблицу https://docs.google.com/spreadsheets/d/' + TABLE_ID)
+
+	elif cd.data.startswith('admin_chat_workout'):
+		workout = getWorkloadByDate(getCurDay().split()[0])
+		if len(workout) == 0:
+			await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text='На сегодня нет бронирований')
+			return
+		message = f"Бронирования на {getDay(str(workout[0][0]).split()[0])}\nВсего бронирований - {len(workout)}"
+		for item in workout:
+			message += f"\n\nВремя: {str(item[0]).split()[1][:5]} - {str(item[1]).split()[1][:5]}\nКол-во столов: {item[2]}\nКем: {item[3]} {item[4]}({item[6]})"
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=message)
+
+
 	elif cd.data.startswith('admin_notify_users'):
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text='Введите текст, который хотите отправить пользователям, как уведомление:')
 		await Admin.notifyText.set()
-
-	elif cd.data.startswith('admin_get_stop_list'):
-		try:await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Список небронеспособного времени")
-		except: pass
-		try: 
-			for item in getStopsReserv(): await bot.send_message(cd.from_user.id, text=f'{getDay(str(item[0]).split()[0])}\nС {item[0].hour}:00 по {item[1].hour}:00\nПричина: {item[2]}')
-		except: pass
 
 	elif cd.data.startswith('admin_cancel_date'):
 		date = cd.data.split('=')[1]
@@ -113,8 +123,8 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 				data['start time'] = f"{date} {data['time']}:00"
 				data['end time'] = f"{date} {cd.data.split('=')[1]}:00"
 			else:
-				data['start time'] = f"{date} 10:00"
-				data['end time'] = f"{date} 19:00"
+				data['start time'] = f"{date} 10:00:00"
+				data['end time'] = f"{date} 19:00:00"
 		try: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Укажите причину, из-за которой отключен прием новых бронирований: ")
 		except: pass
 		await Admin.description.set()
@@ -125,6 +135,7 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 			endTime = data['end time']
 			descr = data['description']
 		await state.finish()
+		await notifyUsers(f"{getDay(str(startTime).split()[0])} C {str(startTime).split()[1][:5]} по {str(endTime).split()[1][:5]} бронирования были остановленны\nПричина: {descr}")
 		if stopReserv(startTime, endTime, descr):
 			await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Бронирования в это время остановленны")
 		else: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text='Возникла ошибка при отмене бронирований')
@@ -140,27 +151,48 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 		if cd.data.startswith('admin_own_reserv'):
 			async with state.proxy() as data: data['user'] = cd.from_user.id
 		keyboard = types.InlineKeyboardMarkup(row_width=1)
-		for item in getDays():
+		for item in getDays(14):
 			keyboard.add(types.InlineKeyboardButton(text=item['dayName'], callback_data=f"admin_date_reserv={item['dayStamp']}"))
-		keyboard.add(types.InlineKeyboardButton(text="Отменить", callback_data="cancel"))
+		keyboard.add(types.InlineKeyboardButton(text="Отменить", callback_data="admin_exit"))
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Выберите день для бронирования:", reply_markup=keyboard)
 	
 	elif cd.data.startswith('admin_date_reserv'):
 		date = cd.data.split('=')[1]
 		async with state.proxy() as data: data['date'] = date
 		keyboard = types.InlineKeyboardMarkup(row_width=1)
-		for item in HOURS: 
-			count = TABLE_COUNTS - checkDate(f"{date} {item.split('-')[0]}:00")
-			if count > 0: callback = f"admin_set_time={item.split()[0]}={count}"
-			else: callback = "pass"
-			keyboard.add(types.InlineKeyboardButton(text=item.replace('count', str(count)), callback_data=callback))
+		for item in getStartHours(date): 
+			keyboard.add(types.InlineKeyboardButton(text=f"{item}:00", callback_data=f"admin_set_start_time={item}"))
+		keyboard.add(types.InlineKeyboardButton(text='Весь день', callback_data="admin_all_day"))
 		keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data="admin_back_to_dates"))
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Выбранный день: {getDay(date)}\nВыберите с какого вренени отенить бронирования:", reply_markup=keyboard)
 
-	elif cd.data.startswith('admin_set_time'):
-		_, time, count = cd.data.split('=')
-		count = int(count)
-		async with state.proxy() as data: data['time'] = time
+	elif cd.data.startswith('admin_set_start_time'):
+		startTime = cd.data.split('=')[1]
+		async with state.proxy() as data: 
+			data['start_time'] = startTime
+			date = data['date']
+		day = getDay(date)
+		keyboard = types.InlineKeyboardMarkup(row_width=1)
+		for item in getEndHours(int(startTime)): 
+			count = TABLE_COUNTS - checkDate(f"{date} {startTime}:00:00", f"{date} {item}:00:00")
+			if count > 0: callback = f"admin_set_end_time={item}={count}"
+			else: callback = "pass"
+			keyboard.add(types.InlineKeyboardButton(text=f"{item}:00 ({count} мест свободно)", callback_data=callback))
+		keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f"admin_date_reserv={date}"))
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Выбранный день: {day}\nВыберите конечное время брони:", reply_markup=keyboard)
+
+
+	elif cd.data.startswith('admin_set_end_time') or cd.data.startswith('admin_all_day'):
+		if cd.data.startswith('admin_set_end_time'):
+			_, time, count = cd.data.split('=')
+			count = int(count)
+			async with state.proxy() as data: 
+				data['end_time'] = time
+		else:
+			async with state.proxy() as data:
+				data['start_time'] = 10
+				data['end_time'] = 18
+				count = 11
 		maxRange = 11 if count >= 11 else count
 		names = ['место', "места", "мест"]
 		keys = []
@@ -168,30 +200,33 @@ async def adminCallbacks(cd: types.CallbackQuery, state: FSMContext):
 			name = names[0] if i == 1 else names[1] if i > 1 and i < 5 else names[2]
 			keys.append(types.InlineKeyboardButton(text=f"{i} {name}", callback_data=f'admin_table_count={i}'))
 		keyboard = types.InlineKeyboardMarkup(row_width=1).add(*keys)
+		keyboard.add(types.InlineKeyboardButton('Все места', callback_data='admin_all_places'))
 		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Сколько мест вам нужно?\nМест сободно: {count}", reply_markup=keyboard)
 
-	elif cd.data.startswith('admin_table_count'):
-		count = cd.data.split('=')[1]
+	elif cd.data.startswith('admin_table_count') or cd.data.startswith('admin_all_places'):
+		count = cd.data.split('=')[1] if cd.data.startswith('admin_table_count') else TABLE_COUNTS
 		async with state.proxy() as data: 
 			data['count'] = count
-			time = data['time']
+			startTime = data['start_time']
+			endTime = data['end_time']
 			date = getDay(data['date'])
 		keyboard = types.InlineKeyboardMarkup(row_width=1).add(*[
 			types.InlineKeyboardButton(text='Подтвердить', callback_data='admin_create_reserv'),
 			types.InlineKeyboardButton(text='Отмена', callback_data='cancel')
 		])
-		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Выбранные данные:\nДата: {date}\nВремя: {time}\nКол-во мест: {count}", reply_markup=keyboard)
+		await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Выбранные данные:\nДата: {date}\nВремя: {startTime}:00 - {endTime}:00\nКол-во мест: {count}", reply_markup=keyboard)
 
 	elif cd.data.startswith('admin_create_reserv'):
 		async with state.proxy() as data: 
 			user = data['user']
 			count = data['count']
-			time = data['time']
+			startTime = data['start_time']
+			endTime = data['end_time']
 			date = data['date']
-		reversId = addReserv(user, f"{date} {time.split('-')[0]}:00", count)
+		reversId = addReserv(user, f"{date} {startTime}:00", f"{date} {endTime}", count)
 		await state.finish()
 		if reversId >= 0:
-			await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Бронь успешно создана!\n{getDay(date)} {time}\nВаше рабочее место в Зеленом театре ждет вас", reply_markup=getReservKB(reversId))
+			await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text=f"Бронь успешно создана!\n{getDay(date)} с {startTime}:00 по {endTime}:00\nВаше рабочее место в Зеленом театре ждет вас", reply_markup=getReservKB(reversId))
 		elif reversId == -1: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="Возникла ошибка при бронировании")
 		elif reversId == -2: await bot.edit_message_text(chat_id=cd.from_user.id,message_id=cd.message.message_id, text="В это время создание бронирования заблокирования")
 

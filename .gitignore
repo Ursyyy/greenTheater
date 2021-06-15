@@ -10,7 +10,8 @@
 
 # production
 /build
-
+*.png
+*.jpg
 # misc
 .DS_Store
 .env.local
@@ -25,3 +26,4 @@ src/components/categories/cats.js
 /__pycache__
 /handlers/__pycache__
 test.py
+PythonProject.json
